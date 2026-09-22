@@ -2,9 +2,22 @@
 
 **MuJoCo-WASM · Franka Emika Panda · Spiking Neural Network · GEN-1.5-inspiriert (vereinfacht)**
 
-Deine App: `SNN-Roboter-Trainer-v1.3.apk` (9,0 MB, signiert, läuft komplett offline auf dem Gerät)
+Deine App: `SNN-Roboter-Trainer-v1.4.apk` (9,0 MB, signiert, läuft komplett offline auf dem Gerät)
 
 ---
+
+## ⭐⭐ Neu in v1.4 – Trainings-Stufen (wie GEN 1.5), Tempo-Beschleunigung & paralleles Sammeln
+
+- **3-Stufen-Trainingskurrikulum** (Tab *SNN-Training*) – genau die GEN-1.5-Pipeline in Miniatur:
+  - **Stufe 1 · Video-Vortraining (BC):** Verhaltens-Klonen auf dem gesammelten Datensatz (= wie *Gen 1*: Foundation-Policy per Behavior Cloning). Das bisherige Training – jetzt mit Stufen-Anzeige.
+  - **Stufe 2 · Roboter-Finetuning (RL):** Das SNN steuert **selbst** den Roboter (mit Explorations-Rauschen, ~24× Echtzeit), bekommt **Belohnung** fürs Greifen & Stapeln und verfeinert sich daraus per **Advantage-gewichteter Regression + BC-Anker** gegen Vergessen (= wie *Gen 1.5*: RL-Post-Training auf dem BC-Fundament mit Hybrid-Loss). Einstellbar: RL-Episoden, Exploration σ, RL-Lernrate, BC-Anteil.
+  - **Stufe 3 · Präzise Ausführung:** Deterministische Ausführung in Echtzeit **ohne Datensammlung** – reine Ausführung & Bewertung mit Erfolgsquote („5/5 gestapelt“), die über Neustarts erhalten bleibt.
+- **SNN ausführen ohne Daten zu sammeln**: Der neue Stufe-3-Button (und der Aufnahme-Haken) trennt Ausführung und Aufnahme sauber – beim reinen SNN-Lauf wächst der Datensatz nicht mehr.
+- **Tempo-Beschleunigung**: Neue Tempo-Stufen **8× und 16×**; im Modus **„Maximal“** laufen Physik und SNN synchron, aber so schnell das Gerät hergibt – größeres Zeitbudget pro Frame, gedrosseltes Rendern (je nach Gerät deutlich über 100× Echtzeit). Die Statistik zeigt jetzt echte **Ticks/s + Tempo-Faktor (×N)**.
+- **Paralleles Sammeln (Worker)**: Im Tab *Datensatz* starten – jeder Worker ist ein eigener Thread mit **eigener MuJoCo-Physik, eigenem Experten und eigenen Kameras** (headless, ohne 3D-Anzeige) und sammelt mit maximalem Tempo. Alle Daten landen automatisch im selben Datensatz-Speicher (Episoden-Nummern werden eindeutig umnummeriert, Speicher-Quota wird überwacht). Auf dem S24U/S26U (8 Kerne) sind standardmäßig 3 Worker aktiv – der Datensatz wächst damit grob ×3 schneller.
+- **Antwort auf „Geht paralleles Lernen?“**: Datensammlung jetzt echt parallel (mehrere Physik-Instanzen), das SNN-Training selbst läuft ohnehin parallel (gebündelte Batches auf der GPU/WebGPU), und Stufe 2 lernt aus eigenen Rollouts im Schnelltempo.
+
+> ✅ **Update**: gleicher Signaturschlüssel wie v1.2/v1.3 – **direkt über die bestehende App installierbar**.
 
 ## ⭐ Neu in v1.3 – Grosser Speicher: 70.000+ Datensätze, 1 Mio.+ Trainingsiterationen
 
@@ -43,20 +56,25 @@ Deine App: `SNN-Roboter-Trainer-v1.3.apk` (9,0 MB, signiert, läuft komplett off
 - App öffnen → **▶ Start** drücken.
 - Der Skript-Experte arbeitet selbstständig: **kein Würfel sichtbar → Suchen**, **Würfel sichtbar → greifen & anheben**, dann **auf den Stapel legen**. Alle 5 Würfel gestapelt → neue Runde mit zufälligen Positionen.
 - Die Aufnahme läuft **so lange, bis du ⏹ Stopp drückst** – jetzt **stundenlang möglich**: 70.000+ Schritte ≈ 3,9 GB auf dem Gerät. Alles ist laufend gesichert; du kannst die App jederzeit schließen, nach Neustart geht es automatisch weiter.
+- **⚡ Paralleles Sammeln (neu in v1.4):** Statt Start einfach *Parallel sammeln* drücken – mehrere Worker (eigene Physik + Experte je Worker) füllen den Datensatz gleichzeitig, headless mit maximalem Tempo. Ideal für große Stufe-1-Datenmengen.
 - **Gerätespeicher im Blick**: Tab *Datensatz* → „Gerätespeicher“ zeigt belegte GB und freien Anteil. Über 92 % Belegung stoppt die Aufnahme sauber.
-- Tipp: Zeitlupe auf **„Maximal“** → Simulation schneller als Echtzeit, Datensatz wächst schneller. Zum Zusehen zurück auf „Echtzeit“.
+- Tipp: Tempo auf **„Maximal“** → Simulation schneller als Echtzeit (je nach Gerät über 100×), Datensatz wächst entsprechend schneller. Zum Zusehen zurück auf „Echtzeit“.
 
-### Schritt 2: SNN auf dem Handy trainieren
+### Schritt 2: SNN auf dem Handy trainieren (Stufe 1 – Video-Vortraining)
 - Tab **SNN-Training**:
   - Lernrate 0.002, Batch 4, Sequenzlänge 12 sind gute Startwerte.
   - **Iterationen**: auch **1.000.000+ sind möglich** – der Fortschritt wird laufend gesichert (Gewichte alle 25 Iterationen) und der Zähler „Iterationen gesamt“ überlebt Neustarts. Für erste Erfolge: 2.000–20.000, dann steigern. Der Loss-Chart sollte fallen.
-  - **⏬ Training starten** – nutzt WebGPU (bzw. WebGL/CPU-Fallback; aktives Backend oben im Kopf).
+  - **⏬ Stufe 1 starten (Video-BC)** – nutzt WebGPU (bzw. WebGL/CPU-Fallback; aktives Backend oben im Kopf).
 - Architektur (fix): LIF-Conv-SNN – 4×Conv+LIF (12/24/24/24 Kanäle, 6-Kanal-Farbinput) → Dense 128 (LIF) → 8 Ausgänge (tanh). ≈ 126.000 Parameter, Surrogat-Gradient (ATan-artig), BPTT, Adam.
 
-### Schritt 3: SNN testen (wie GEN-1.5)
-- **🧠 SNN in Sim testen** – ab jetzt steuert **nur noch das Netz** den Roboter: Input = ausschließlich die beiden festen Kameras (96×96 Farbe), Output = 8 PWM-artige Motorbefehle.
-- **Zurück zum Experten** wechselt jederzeit zurück.
-- Nach mehr Trainingsdaten + Iterationen wird das SNN besser – einfach öfter wiederholen (sammeln → trainieren → testen).
+### Schritt 2b: Stufe 2 – Roboter-Finetuning (RL, neu in v1.4)
+- **🚀 Stufe 2 starten (RL)**: Das SNN übernimmt die Steuerung (mit σ-Rauschen zur Exploration), sammelt Belohnung (Greifen +1, Stapeln +3, Runde komplett +10, Fortschritts-Shaping) und lernt nach jeder Episode daraus (24 RL-Updates + wählbarer BC-Anteil aus Stufe 1 gegen Vergessen). σ nimmt pro Episode automatisch ab (0,96×).
+- Empfehlung: zuerst ≥ 2.000–10.000 Schritte Stufe-1-Daten und ein paar tausend Iterationen, dann 10–50 RL-Episoden. Die Statuskarten zeigen Episode, Reward, beste Stapel und Updates.
+
+### Schritt 3: Ausführen & Bewerten (Stufe 3 – ohne Datensammlung)
+- **🎯 SNN ausführen (ohne Datensammlung)**: Deterministisch (kein Rauschen), Echtzeit, schreibt **nichts** in den Datensatz. Zählt Runden komplett gestapelt / gesamt → Erfolgsquote bleibt über Neustarts erhalten.
+- **🧠 SNN in Sim testen** bleibt als schneller Test (mit Aufnahme, falls Haken gesetzt) – **Zurück zum Experten** wechselt jederzeit zurück.
+- Nach mehr Daten + Stufe-2-Finetuning wird das SNN präziser – simply wiederholen (sammeln → Stufe 1 → Stufe 2 → Stufe 3).
 
 ### Export / Import
 - **Datensatz exportieren** → `.snnpack` (gzip) landet als Stream in *Downloads* – auch mehrere GB ohne RAM-Probleme. Import fügt Daten hinzu und erkennt auch v1.1/v1.2-Dateien.
@@ -66,10 +84,12 @@ Deine App: `SNN-Roboter-Trainer-v1.3.apk` (9,0 MB, signiert, läuft komplett off
 
 | Element | Bedeutung |
 |---|---|
-| ▶ Start / ⏹ Stopp | Simulation + Aufnahme gemeinsam |
+| ▶ Start / ⏹ Stopp | Simulation + Aufnahme gemeinsam (Stopp beendet auch Stufen & Worker) |
 | ⟲ Reset | Aktuelle Runde neu würfeln (Würfel neu platzieren) |
-| Zeitlupe | Echtzeit / 2× / 4× / Maximal (Sammeltempo) |
+| Tempo | Echtzeit / 2× / 4× / 8× / 16× / Maximal (Physik + SNN synchron beschleunigt) |
 | Politik | Skript-Experte oder SNN |
+| ⚡ Parallel sammeln | Worker-Anzahl (Auto = 3 auf 8-Kern-Geräten) + Start/Stopp, live Schritte/s |
+| Stufe 1/2/3 | Video-BC → RL-Finetuning → präzise Ausführung; erreichte Stufe wird gespeichert |
 | PiP-Bilder | Übersicht (92°) + Nahaufnahme (60°), fest montiert, 96×96 Farbe – genau das, was das SNN sieht |
 | „Gerätespeicher“ | Belegter Speicher + freier Anteil (Datensatz-Tab) |
 | „Iterationen gesamt“ | Kumulierter Trainingsfortschritt über alle Sitzungen (SNN-Tab) |
@@ -82,7 +102,8 @@ Deine App: `SNN-Roboter-Trainer-v1.3.apk` (9,0 MB, signiert, läuft komplett off
 - **Kameras:** zwei feste externe Kameras (nicht am Arm!) – Übersicht (92°) + Nahaufnahme (60°), Offscreen-Rendering 96×96 **Farbe (RGB)** mit Three.js
 - **Datensatz-Speicher (neu in v1.3):** Chunk-Speicher auf IndexedDB – 256 Schritte pro Chunk (~14 MB), Bilder + Posen getrennt von den schlanken Trainings-Metadaten; LRU-Cache (~192 MB) für schnelle Trainingsbatches; `navigator.storage`-Quota-Überwachung
 - **IK:** Resolved-Rate (Jacobian + gedämpfte kleinste Quadrate + Nullraum-Haltung), phasenweise Stellgeschwindigkeits-Begrenzung, Gripper-Yaw-Anpassung an die Würfel-Ausrichtung
-- **SNN:** Input nur Kameras → Output Motoren, wie GEN-1.5 (Generalist AI) – nur eben als spikendes Netz und direkt on-device trainiert (Verhaltens-Klonen des Experten)
+- **SNN:** Input nur Kameras → Output Motoren, wie GEN-1.5 (Generalist AI) – nur eben als spikendes Netz und direkt on-device trainiert. **Stufen wie das Vorbild:** Gen 1 = Behavior Cloning auf Demonstrationen (unsere Stufe 1); Gen 1.5 = RL-Post-Training auf dem BC-Fundament mit Hybrid-Loss (unsere Stufe 2: Advantage-gewichtete Regression auf eigenen Rollouts + BC-Anker); Stufe 3 = Bewertung/Ausführung. Vereinfachungen: kein Aktions-Chunking, kein Multi-Embodiment, kleinere Netze – aber dieselbe Reihenfolge.
+- **Paralleles Sammeln (neu in v1.4):** Web-Worker (Modul-Worker) mit je eigener MuJoCo-WASM-Instanz + OffscreenCanvas-Kameras + Experte; Zero-Copy-Transfers (ArrayBuffer) zurück in den Haupt-Thread; Backpressure über die Schreib-Warteschlange; Speicher-Quota-Überwachung.
 
 ## 5. Selbst bauen / ändern
 
