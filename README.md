@@ -2,11 +2,21 @@
 
 **MuJoCo-WASM · Franka Emika Panda · Spiking Neural Network · GEN-1.5-inspiriert (vereinfacht)**
 
-Deine App: `SNN-Roboter-Trainer-v1.1.apk` (9,0 MB, signiert, läuft komplett offline auf dem Gerät)
+Deine App: `SNN-Roboter-Trainer-v1.2.apk` (9,0 MB, signiert, läuft komplett offline auf dem Gerät)
 
 ---
 
-## ⭐ Neu in v1.1
+## ⭐ Neu in v1.2 – Absturzsicherung, Auto-Backup, mehr Tempo
+
+- **Auto-Backup (das Wichtigste)**: Datensatz **und** trainierte Gewichte werden jetzt automatisch im App-Speicher (IndexedDB) gesichert – fortlaufend während der Aufnahme, alle 25 Iterationen während des Trainings, beim Stopp und beim Verlassen der App. Nach einem Absturz, Hintergrund-Kill oder Neustart erscheint oben ein Banner **„Backup gefunden … wiederherstellen?“** – ein Tipp und alles ist zurück.
+- **Absturzsicher**: Globale Fehler- und WebGL-Kontext-Überwachung. Grafik- oder Simulationsfehler beenden die App nicht mehr, sondern stoppen sauber, sichern das Backup und machen weiter. Beim Verlust des Grafikkontexts (typisch bei Speicherdruck) wird neu geladen – ohne Datenverlust.
+- **Lag behoben**: Die Ursachen für das Ruckeln nach langen Aufnahmen/Trainings sind beseitigt – kleinere Speicherblöcke beim Aufnehmen (keine 113-MB-Allokationsspitzen mehr), **Puffer-Wiederverwendung im Training** (vorher ~10 MB neue Arrays pro Iteration → Garbage-Collector-Churn), Kamerabilder werden nur noch gelesen, wenn sie gebraucht werden.
+- **RAM-Limit gesenkt** (420 → 320 MB): stabiler auf dem Handy; mit Auto-Backup geht trotzdem nichts mehr verloren.
+- **Bugfix Gewichte-Export/Import**: In v1.1 konnte das Laden exportierter `.snnweights`-Dateien an einer Byte-Ausrichtung scheitern („start offset of Float32Array …“). Behoben – gilt auch für alte Dateien.
+
+> ⚠️ **Wichtig beim Update von v1.1**: v1.2 ist mit einem neuen Signaturschlüssel signiert. Android verweigert das Überschreiben – bitte **einmalig die alte App deinstallieren**, dann v1.2 installieren. (Alte Daten sind davon nicht betroffen – v1.1 hatte noch kein Backup, v1.2 legt jetzt eigenes an.)
+
+## Neu in v1.1
 
 - **Stapeln funktioniert jetzt zuverlässig**: überarbeitete Greif-/Ablege-Logik (Finger-Stabilitätsprüfung, verstärkter Greifer-Servo, Yaw-Ausrichtung, kettenbasiertes Stapeln auf der gemessenen Turmspitze, kraftfreies Aufsetzen). In automatisierten Tests stapelt der Experte wiederholt alle 5 Würfel.
 - **Neue Kameras**: zwei **feste externe Kameras** (Übersicht 92° + Nahaufnahme 60°) statt arm­montierter Kamera – der Greifer blockiert **nichts** mehr.
@@ -26,6 +36,7 @@ Deine App: `SNN-Roboter-Trainer-v1.1.apk` (9,0 MB, signiert, läuft komplett off
 - Der Skript-Experte arbeitet jetzt selbstständig: **kein Würfel sichtbar → Suchen** (Kamerafahrt), **Würfel sichtbar → greifen & anheben**, dann **auf den Stapel legen**. Alle 5 Würfel gestapelt → neue Runde mit zufälligen Positionen.
 - Die Aufnahme läuft **so lange, bis du ⏹ Stopp drückst** (Kontrollkästchen „Aufnahme" im Tab *Datensatz*).
 - Faustregel für einfache Qualität: **10–30 Minuten** Sammeln (ca. 12.000–36.000 Schritte ≈ 100–290 MB im RAM). Der Fortschritt steht im Tab *Datensatz*.
+- **Auto-Backup läuft mit**: Im Tab *Datensatz* unter „Sicherung (Auto-Backup)“ siehst du den Stand des letzten Backups. Auf Nahme und Training sind automatisch gesichert – du kannst die App jederzeit schließen, ein Absturz verliert nichts mehr. „💾 Jetzt sichern“ erzwingt einen manuellen Sicherungspunkt, „🗑 Backup löschen“ räumt den App-Speicher frei.
 - Tipp: Im Tab *Steuerung* die Zeitlupe auf **„Maximal"** stellen → die Simulation rendert schneller als Echtzeit, der Datensatz wächst schneller. Zum Zusehen zurück auf „Echtzeit".
 
 ### Schritt 2: SNN auf dem Handy trainieren
@@ -42,7 +53,7 @@ Deine App: `SNN-Roboter-Trainer-v1.1.apk` (9,0 MB, signiert, läuft komplett off
 
 ### Export / Import
 - **Datensatz exportieren** → `.snnpack`-Datei (gzip) landet in *Downloads*. Import fügt Daten hinzu (z. B. Sitzungen vom PC übertragen).
-- **Gewichte** exportieren/importieren als `.snnweights` – so nimmst du trainierte Netze zwischen Geräten mit (S24 Ultra ↔ S26 Ultra).
+- **Gewichte** exportieren/importieren als `.snnweights` – so nimmst du trainierte Netze zwischen Geräten mit (S24 Ultra ↔ S26 Ultra). In v1.2 zusätzlich automatisch im App-Backup gesichert (Checkpoint alle 25 Iterationen, nach Abschluss und bei Fehlern).
 
 ## 3. Bedienoberfläche
 
@@ -65,20 +76,13 @@ Deine App: `SNN-Roboter-Trainer-v1.1.apk` (9,0 MB, signiert, läuft komplett off
 
 ## 5. Selbst bauen / ändern
 
-```bash
-# Web-App bauen (Projekt liegt in robotapp/)
-cd robotapp && npm install && npx vite build
-
-# APK bauen (Projekt liegt in android/, Assets werden automatisch synchronisiert)
-cd ../android && ./gradlew assembleRelease
-# → app/build/outputs/apk/release/app-release.apk
-```
-- Signatur: `android/app/release.keystore` (Alias `snn`, Passwort `snn2026` – für eigene Builds bitte ersetzen!)
-- Benötigt: Android SDK (Plattform 35), JDK 17+
+- Die App ist eine WebView-Hülle (Android) um die Web-App in `assets/www` (HTML + JS, unminifiziert lesbar als `assets/app.js`). Einfachste Anpassung: APK entpacken, `assets/www` ändern, mit [apktool](https://apktool.org) neu bauen, mit `zipalign` + `apksigner` (Android Build-Tools) neu signieren.
+- v1.2-Signaturschlüssel: `v12-release.jks` (Alias `v12`, Passwort `SNNtrainer2026` – für eigene Builds bitte ersetzen!). Wer den Schlüssel behalten will, sollte ihn sichern – nur damit signierte Updates installierbar sind.
+- Benötigt: JDK 17+, apktool 2.10, Android Build-Tools 34
 
 ## 6. Grenzen & Tipps
 
 - Das SNN sieht **nur** die beiden festen Kameras (96×96 RGB) – über Farbe sind die Würfel jetzt unterscheidbar, Positionen & Bewegungen werden aus zwei Blickwinkeln gelernt.
-- Bei Speicherwarnung: Datensatz exportieren und leeren, dann weiter sammeln (Limit ≈ 420 MB).
+- Bei Speicherwarnung: Datensatz exportieren und leeren, dann weiter sammeln (Limit ≈ 320 MB, Backup entfällt daraus nicht).
 - Erste SNN-Erfolge brauchen echte Datenmenge + Iterationen – der kurze Smoke-Test im Auslieferungszustand war nur ein Funktionstest.
-- Performance: auf dem S24U/S26U läuft die Physik in Echtzeit; „Maximal" entkoppelt von der Anzeige.
+- Performance: auf dem S24U/S26U läuft die Physik in Echtzeit; „Maximal" entkoppelt von der Anzeige. v1.2 reduziert die Last zusätzlich (Kamera-Readback nur bei Bedarf, weniger Speicherallokationen).
