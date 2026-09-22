@@ -2,58 +2,65 @@
 
 **MuJoCo-WASM · Franka Emika Panda · Spiking Neural Network · GEN-1.5-inspiriert (vereinfacht)**
 
-Deine App: `SNN-Roboter-Trainer-v1.2.apk` (9,0 MB, signiert, läuft komplett offline auf dem Gerät)
+Deine App: `SNN-Roboter-Trainer-v1.3.apk` (9,0 MB, signiert, läuft komplett offline auf dem Gerät)
 
 ---
 
-## ⭐ Neu in v1.2 – Absturzsicherung, Auto-Backup, mehr Tempo
+## ⭐ Neu in v1.3 – Grosser Speicher: 70.000+ Datensätze, 1 Mio.+ Trainingsiterationen
 
-- **Auto-Backup (das Wichtigste)**: Datensatz **und** trainierte Gewichte werden jetzt automatisch im App-Speicher (IndexedDB) gesichert – fortlaufend während der Aufnahme, alle 25 Iterationen während des Trainings, beim Stopp und beim Verlassen der App. Nach einem Absturz, Hintergrund-Kill oder Neustart erscheint oben ein Banner **„Backup gefunden … wiederherstellen?“** – ein Tipp und alles ist zurück.
-- **Absturzsicher**: Globale Fehler- und WebGL-Kontext-Überwachung. Grafik- oder Simulationsfehler beenden die App nicht mehr, sondern stoppen sauber, sichern das Backup und machen weiter. Beim Verlust des Grafikkontexts (typisch bei Speicherdruck) wird neu geladen – ohne Datenverlust.
-- **Lag behoben**: Die Ursachen für das Ruckeln nach langen Aufnahmen/Trainings sind beseitigt – kleinere Speicherblöcke beim Aufnehmen (keine 113-MB-Allokationsspitzen mehr), **Puffer-Wiederverwendung im Training** (vorher ~10 MB neue Arrays pro Iteration → Garbage-Collector-Churn), Kamerabilder werden nur noch gelesen, wenn sie gebraucht werden.
-- **RAM-Limit gesenkt** (420 → 320 MB): stabiler auf dem Handy; mit Auto-Backup geht trotzdem nichts mehr verloren.
-- **Bugfix Gewichte-Export/Import**: In v1.1 konnte das Laden exportierter `.snnweights`-Dateien an einer Byte-Ausrichtung scheitern („start offset of Float32Array …“). Behoben – gilt auch für alte Dateien.
+- **Kein RAM-Limit mehr**: Der Datensatz liegt nicht mehr im Arbeitsspeicher (vorher Limit ≈ 320 MB ≈ 6.000 Schritte), sondern wird **dauerhaft in Chunks auf dem Gerätespeicher (IndexedDB)** abgelegt. **70.000+ Schritte** (≈ 3,9 GB) sind problemlos möglich – der RAM-Verbrauch bleibt dabei konstant niedrig (Schreibpuffer + ~190 MB Lese-Cache).
+- **Dauerhaft & absturzsicher**: Jeder volle Chunk (256 Schritte) wird sofort gesichert, der laufende Rest alle 60 Sekunden. Nach Absturz, Hintergrund-Kill oder Neustart ist der komplette Datensatz **automatisch wieder da** – ohne Banner-Klick.
+- **1.000.000+ Trainingsiterationen**: Das Training liest die Daten jetzt **chunk-weise von der Platte** (gemischte Reihenfolge pro Epoche, RAM-Cache für heiße Chunks). Puffer werden wiederverwendet, der neue Zähler **„Iterationen gesamt“** speichert deinen Gesamtfortschritt über alle Sitzungen hinweg – auch nach App-Neustart.
+- **Speicher-Monitor**: Im Tab *Datensatz* zeigt „Gerätespeicher“ jetzt belegte GB + freien Anteil. Läuft der Speicher voll (> 92 %), stoppt die Aufnahme sauber mit Hinweis – nichts geht kaputt.
+- **Streaming-Export**: `.snnpack`-Export läuft jetzt als **Stream** direkt auf die Platte/Downloads – auch 70.000 Schritte exportieren, ohne den RAM zu füllen. Import ebenso (liest blockweise, erkennt v1.1/v1.2-Dateien automatisch).
+- **Bugfix Import**: v1.1/v1.2 konnten Dateien mit mehr als einem Block beim Import **falsch einlesen** (fehlinterpretierte Blockgrenzen). v1.3 liest beide Altformate korrekt (Automatische Erkennung 512er/2048er-Blöcke) und schreibt ein sauberes v3-Format.
+- **v1.2-Backup wird übernommen**: Beim ersten Start erscheint ein Banner, falls noch ein v1.2-Backup (alte „block_“-Sicherung) existiert – ein Tipp auf *Wiederherstellen* migriert es in den neuen Dauerspeicher und räumt die alte Kopie weg.
 
-> ⚠️ **Wichtig beim Update von v1.1**: v1.2 ist mit einem neuen Signaturschlüssel signiert. Android verweigert das Überschreiben – bitte **einmalig die alte App deinstallieren**, dann v1.2 installieren. (Alte Daten sind davon nicht betroffen – v1.1 hatte noch kein Backup, v1.2 legt jetzt eigenes an.)
+> ✅ **Update von v1.2**: gleicher Signaturschlüssel wie v1.2 – v1.3 lässt sich **direkt über die bestehende App installieren**, ohne Deinstallation. (Nur beim Sprung von v1.1 war Deinstallieren nötig.)
+
+## Neu in v1.2
+
+- **Auto-Backup**: Gewichte werden laufend im App-Speicher gesichert (alle 25 Iterationen beim Training, bei Stopp und Verlassen). Wiederherstellungs-Banner nach dem Start.
+- **Absturzsicher**: Globale Fehler- und WebGL-Kontext-Überwachung; Fehler stoppen sauber mit Sicherung statt Absturz.
+- **Lag behoben**: Puffer-Wiederverwendung im Training, kleinere Speicherblöcke, Kamera-Readback nur bei Bedarf.
+- **Bugfix Gewichte-Export/Import** (Float32-Ausrichtung).
 
 ## Neu in v1.1
 
-- **Stapeln funktioniert jetzt zuverlässig**: überarbeitete Greif-/Ablege-Logik (Finger-Stabilitätsprüfung, verstärkter Greifer-Servo, Yaw-Ausrichtung, kettenbasiertes Stapeln auf der gemessenen Turmspitze, kraftfreies Aufsetzen). In automatisierten Tests stapelt der Experte wiederholt alle 5 Würfel.
+- **Stapeln funktioniert zuverlässig**: überarbeitete Greif-/Ablege-Logik; in Tests stapelt der Experte wiederholt alle 5 Würfel.
 - **Neue Kameras**: zwei **feste externe Kameras** (Übersicht 92° + Nahaufnahme 60°) statt arm­montierter Kamera – der Greifer blockiert **nichts** mehr.
 - **Farbe + höhere Auflösung**: 96×96 **RGB** pro Kamera (statt 64×64 Graustufen).
-- **Datensatz v2**: RGB-Format. Alte v1-Datensätze (Graustufen) werden beim Import abgelehmt – bitte neu aufnehmen.
 
 ## 1. Installation (Samsung S24 Ultra / S26 Ultra)
 
 1. APK auf das Handy übertragen (USB, Cloud, Bluetooth …)
-2. APK antippen → Android fragt nach Erlaubnis für „Unbekannte Quellen" → für deinen Dateimanager erlauben
+2. APK antippen → Android fragt nach Erlaubnis für „Unbekannte Quellen“ → für deinen Dateimanager erlauben
 3. Installieren – fertig. Keine Berechtigungen nötig (kein Internet, komplett offline)
 
 ## 2. So funktioniert der Ablauf
 
 ### Schritt 1: Datensatz sammeln
 - App öffnen → **▶ Start** drücken.
-- Der Skript-Experte arbeitet jetzt selbstständig: **kein Würfel sichtbar → Suchen** (Kamerafahrt), **Würfel sichtbar → greifen & anheben**, dann **auf den Stapel legen**. Alle 5 Würfel gestapelt → neue Runde mit zufälligen Positionen.
-- Die Aufnahme läuft **so lange, bis du ⏹ Stopp drückst** (Kontrollkästchen „Aufnahme" im Tab *Datensatz*).
-- Faustregel für einfache Qualität: **10–30 Minuten** Sammeln (ca. 12.000–36.000 Schritte ≈ 100–290 MB im RAM). Der Fortschritt steht im Tab *Datensatz*.
-- **Auto-Backup läuft mit**: Im Tab *Datensatz* unter „Sicherung (Auto-Backup)“ siehst du den Stand des letzten Backups. Auf Nahme und Training sind automatisch gesichert – du kannst die App jederzeit schließen, ein Absturz verliert nichts mehr. „💾 Jetzt sichern“ erzwingt einen manuellen Sicherungspunkt, „🗑 Backup löschen“ räumt den App-Speicher frei.
-- Tipp: Im Tab *Steuerung* die Zeitlupe auf **„Maximal"** stellen → die Simulation rendert schneller als Echtzeit, der Datensatz wächst schneller. Zum Zusehen zurück auf „Echtzeit".
+- Der Skript-Experte arbeitet selbstständig: **kein Würfel sichtbar → Suchen**, **Würfel sichtbar → greifen & anheben**, dann **auf den Stapel legen**. Alle 5 Würfel gestapelt → neue Runde mit zufälligen Positionen.
+- Die Aufnahme läuft **so lange, bis du ⏹ Stopp drückst** – jetzt **stundenlang möglich**: 70.000+ Schritte ≈ 3,9 GB auf dem Gerät. Alles ist laufend gesichert; du kannst die App jederzeit schließen, nach Neustart geht es automatisch weiter.
+- **Gerätespeicher im Blick**: Tab *Datensatz* → „Gerätespeicher“ zeigt belegte GB und freien Anteil. Über 92 % Belegung stoppt die Aufnahme sauber.
+- Tipp: Zeitlupe auf **„Maximal“** → Simulation schneller als Echtzeit, Datensatz wächst schneller. Zum Zusehen zurück auf „Echtzeit“.
 
 ### Schritt 2: SNN auf dem Handy trainieren
 - Tab **SNN-Training**:
   - Lernrate 0.002, Batch 4, Sequenzlänge 12 sind gute Startwerte.
-  - **Iterationen**: 500–2000 für erste Erfolge (je nach Datenmenge). Der Loss-Chart sollte fallen.
-  - **⏬ Training starten** – das Training nutzt WebGPU (bzw. fällt auf WebGL/CPU zurück; das aktive Backend steht oben im Kopf).
-- Architektur (fix): LIF-Conv-SNN – 4×Conv+LIF (12/24/24/24 Kanäle, 6-Kanal-Farbinput) → Dense 128 (LIF) → 8 Ausgänge mit tanh. ≈ 126.000 Parameter, Surrogat-Gradient (ATan-artig), BPTT über die Zeit, Adam.
+  - **Iterationen**: auch **1.000.000+ sind möglich** – der Fortschritt wird laufend gesichert (Gewichte alle 25 Iterationen) und der Zähler „Iterationen gesamt“ überlebt Neustarts. Für erste Erfolge: 2.000–20.000, dann steigern. Der Loss-Chart sollte fallen.
+  - **⏬ Training starten** – nutzt WebGPU (bzw. WebGL/CPU-Fallback; aktives Backend oben im Kopf).
+- Architektur (fix): LIF-Conv-SNN – 4×Conv+LIF (12/24/24/24 Kanäle, 6-Kanal-Farbinput) → Dense 128 (LIF) → 8 Ausgänge (tanh). ≈ 126.000 Parameter, Surrogat-Gradient (ATan-artig), BPTT, Adam.
 
 ### Schritt 3: SNN testen (wie GEN-1.5)
-- **🧠 SNN in Sim testen** – ab jetzt steuert **nur noch das Netz** den Roboter: Input = ausschließlich die beiden festen Kameras (Übersicht + Nahaufnahme, 96×96 **Farbe**), Output = 8 PWM-artige Motorbefehle (7 Gelenkgeschwindigkeiten + Greifer).
+- **🧠 SNN in Sim testen** – ab jetzt steuert **nur noch das Netz** den Roboter: Input = ausschließlich die beiden festen Kameras (96×96 Farbe), Output = 8 PWM-artige Motorbefehle.
 - **Zurück zum Experten** wechselt jederzeit zurück.
-- Nach mehr Trainingsdaten + Iterationen wird das SNN besser – einfach öfter wiederholen (Daten sammeln → trainieren → testen).
+- Nach mehr Trainingsdaten + Iterationen wird das SNN besser – einfach öfter wiederholen (sammeln → trainieren → testen).
 
 ### Export / Import
-- **Datensatz exportieren** → `.snnpack`-Datei (gzip) landet in *Downloads*. Import fügt Daten hinzu (z. B. Sitzungen vom PC übertragen).
-- **Gewichte** exportieren/importieren als `.snnweights` – so nimmst du trainierte Netze zwischen Geräten mit (S24 Ultra ↔ S26 Ultra). In v1.2 zusätzlich automatisch im App-Backup gesichert (Checkpoint alle 25 Iterationen, nach Abschluss und bei Fehlern).
+- **Datensatz exportieren** → `.snnpack` (gzip) landet als Stream in *Downloads* – auch mehrere GB ohne RAM-Probleme. Import fügt Daten hinzu und erkennt auch v1.1/v1.2-Dateien.
+- **Gewichte** exportieren/importieren als `.snnweights` – z. B. S24 Ultra ↔ S26 Ultra. Zusätzlich automatisch im App-Backup gesichert.
 
 ## 3. Bedienoberfläche
 
@@ -64,6 +71,8 @@ Deine App: `SNN-Roboter-Trainer-v1.2.apk` (9,0 MB, signiert, läuft komplett off
 | Zeitlupe | Echtzeit / 2× / 4× / Maximal (Sammeltempo) |
 | Politik | Skript-Experte oder SNN |
 | PiP-Bilder | Übersicht (92°) + Nahaufnahme (60°), fest montiert, 96×96 Farbe – genau das, was das SNN sieht |
+| „Gerätespeicher“ | Belegter Speicher + freier Anteil (Datensatz-Tab) |
+| „Iterationen gesamt“ | Kumulierter Trainingsfortschritt über alle Sitzungen (SNN-Tab) |
 | Chips oben | Sim-Status, Aufnahme-Aktiv, TF.js-Backend |
 
 ## 4. Technik & GEN-1.5-Anlehnung
@@ -71,18 +80,20 @@ Deine App: `SNN-Roboter-Trainer-v1.2.apk` (9,0 MB, signiert, läuft komplett off
 - **Simulation:** MuJoCo (aktueller Main-Stand), als Single-Thread-WebAssembly selbst gebaut, läuft in der WebView offline
 - **Roboter:** Franka Emika Panda (MuJoCo Menagerie), Positionsservos; die Politik gibt normalisierte **Geschwindigkeits-/PWM-äquivalente Befehle** (−1…+1) aus, die zu Ziellagen integriert werden
 - **Kameras:** zwei feste externe Kameras (nicht am Arm!) – Übersicht (92°) + Nahaufnahme (60°), Offscreen-Rendering 96×96 **Farbe (RGB)** mit Three.js
-- **IK:** Resolved-Rate (Jacobian + gedämpfte kleinste Quadrate + Nullraum-Haltung), phasenweise Stellgeschwindigkeits-Begrenzung, Gripp-Yaw-Anpassung an die Würfel-Ausrichtung
-- **SNN:** Input nur Kameras → Output Motoren, wie GEN-1.5 (Generalist AI) – nur eben als spikendes Netz und direkt on-device trainiert (Verhaltens-Klonen des Experten statt 500.000 h Real-Daten)
+- **Datensatz-Speicher (neu in v1.3):** Chunk-Speicher auf IndexedDB – 256 Schritte pro Chunk (~14 MB), Bilder + Posen getrennt von den schlanken Trainings-Metadaten; LRU-Cache (~192 MB) für schnelle Trainingsbatches; `navigator.storage`-Quota-Überwachung
+- **IK:** Resolved-Rate (Jacobian + gedämpfte kleinste Quadrate + Nullraum-Haltung), phasenweise Stellgeschwindigkeits-Begrenzung, Gripper-Yaw-Anpassung an die Würfel-Ausrichtung
+- **SNN:** Input nur Kameras → Output Motoren, wie GEN-1.5 (Generalist AI) – nur eben als spikendes Netz und direkt on-device trainiert (Verhaltens-Klonen des Experten)
 
 ## 5. Selbst bauen / ändern
 
 - Die App ist eine WebView-Hülle (Android) um die Web-App in `assets/www` (HTML + JS, unminifiziert lesbar als `assets/app.js`). Einfachste Anpassung: APK entpacken, `assets/www` ändern, mit [apktool](https://apktool.org) neu bauen, mit `zipalign` + `apksigner` (Android Build-Tools) neu signieren.
-- v1.2-Signaturschlüssel: `v12-release.jks` (Alias `v12`, Passwort `SNNtrainer2026` – für eigene Builds bitte ersetzen!). Wer den Schlüssel behalten will, sollte ihn sichern – nur damit signierte Updates installierbar sind.
+- Signaturschlüssel: `v12-release.jks` (Alias `v12`, Passwort `SNNtrainer2026` – für eigene Builds bitte ersetzen!). Wer Updates über bestehende Installationen installieren will, sollte ihn sichern.
 - Benötigt: JDK 17+, apktool 2.10, Android Build-Tools 34
 
 ## 6. Grenzen & Tipps
 
-- Das SNN sieht **nur** die beiden festen Kameras (96×96 RGB) – über Farbe sind die Würfel jetzt unterscheidbar, Positionen & Bewegungen werden aus zwei Blickwinkeln gelernt.
-- Bei Speicherwarnung: Datensatz exportieren und leeren, dann weiter sammeln (Limit ≈ 320 MB, Backup entfällt daraus nicht).
-- Erste SNN-Erfolge brauchen echte Datenmenge + Iterationen – der kurze Smoke-Test im Auslieferungszustand war nur ein Funktionstest.
-- Performance: auf dem S24U/S26U läuft die Physik in Echtzeit; „Maximal" entkoppelt von der Anzeige. v1.2 reduziert die Last zusätzlich (Kamera-Readback nur bei Bedarf, weniger Speicherallokationen).
+- Das SNN sieht **nur** die beiden festen Kameras (96×96 RGB) – über Farbe sind die Würfel unterscheidbar, Positionen & Bewegungen werden aus zwei Blickwinkeln gelernt.
+- **Speicher voll?** („Gerätespeicher“-Anzeige) → Datensatz exportieren und leeren, dann weiter sammeln. Die Aufnahme stoppt bei > 92 % Belegung automatisch sauber.
+- Erste SNN-Erfolge brauchen echte Datenmenge + Iterationen – am besten lang sammeln (mehrere 10.000 Schritte) und dann lange trainieren (Zehntausende bis Millionen Iterationen).
+- Lange Trainingsläufe: Gerät ans Ladegerät und Display anlassen (Android pausiert Hintergrund-Apps) – der Fortschritt ist trotzdem laufend gesichert.
+- Performance: auf dem S24U/S26U läuft die Physik in Echtzeit; „Maximal“ entkoppelt von der Anzeige. Das Training nutzt WebGPU, wo verfügbar.
