@@ -2,11 +2,26 @@
 
 **MuJoCo-WASM · Franka Emika Panda · Spiking Neural Network · GEN-1.5-inspiriert (vereinfacht)**
 
-Deine App: `SNN-Roboter-Trainer-v1.4.apk` (9,0 MB, signiert, läuft komplett offline auf dem Gerät)
+Deine App: `SNN-Roboter-Trainer-v1.6.apk` (9,0 MB, signiert, läuft komplett offline auf dem Gerät)
 
 ---
 
-## ⭐⭐ Neu in v1.4 – Trainings-Stufen (wie GEN 1.5), Tempo-Beschleunigung & paralleles Sammeln
+## ⭐⭐⭐ Neu in v1.6 – Kritischer Fix: App fror nach 1 Sekunde ein
+
+- **Ursache gefunden und behoben**: In v1.5 war eine interne Funktion umbenannt worden, während eine Stelle im Code sie noch unter dem alten Namen aufrief. Beim ersten Statistik-Update (nach ca. 0,4 s) brach dadurch die gesamte Animations-Schleife mit einem `ReferenceError` ab – **Roboter, Kameras und Datensatz-Sammlung froren gleichzeitig ein** (die Oberfläche blieb stehen, dahinter lief nichts mehr).
+- **Schleife jetzt komplett abgesichert**: Physik, Rendering, Kamera-Bilder und Statistik sind getrennt in eigene Fehler-Fänger gepackt, und der Bildschirm-Neustart (`requestAnimationFrame`) ist bedingungslos – **ein einzelner Fehler kann die App nie wieder still einfrieren**. Fehler werden protokolliert (CrashGuard) und die App läuft weiter; erst bei dauerhaft wiederholten Fehlern stoppt sie sauber mit Meldung.
+- **Verifiziert**: Headless-Test mit echtem MuJoCo über 412 Sim-Sekunden: 0 Abstürze, 0 Exceptions, 1 Turm-Verlust (v1.4: 9 in 900 s), Greifversatz durchgehend unter 1 cm.
+
+> ✅ **Update von v1.5**: gleicher Signaturschlüssel wie v1.5 – **direkt über die bestehende App installierbar**, ohne Deinstallation, ohne Datenverlust (Datensatz & Gewichte bleiben erhalten).
+
+## ⭐⭐ Neu in v1.5 – IK-Überholung & Greifer-Kamera ohne Sichtblockade
+
+- **Greifer-Kamera zurück am Arm**: Die zweite Kamera sitzt seitlich am Handgelenk (nach außen versetzt), der Blick geht knapp hinter die Werkzeugspitze – Greifer und Finger stehen nur am Bildrand, die Sicht auf Würfel und Arbeitsbereich bleibt frei. Die feste Übersichtskamera bleibt erhalten.
+- **Zuverlässigeres Greifen**: kipp-robuste Würfel-Winkelberechnung, Griff-Verifikation (max. 8 mm seitlicher Versatz, Griffzone am Würfel, Griffband gegen Kanten-/Eckengriffe), sofortige Verlust-Erkennung mit automatischem Neu-Anflug, Yaw beim Tragen beibehalten, größere Fingerpolster.
+- **Stabilere Türme** („Stapel fliegt runter“): senkrechter Steigflug vor jeder seitlichen Fahrt, Überfahrt in sicherer Höhe über dem Turm, diagonal geführter Rückzug vom Turm (kein Streifen der Turmkante mehr), Settle-Phase nach dem Öffnen, turmbewusste Würfel-Auswahl, erhöhte Würfel-Reibung.
+- **Warnung für Umsteiger von v1.4**: v1.5/v1.6 haben einen neuen Signaturschlüssel – beim Sprung von v1.4 ist einmalig Deinstallieren nötig (vorher Datensatz & Gewichte exportieren!).
+
+## Neu in v1.4 – Trainings-Stufen (wie GEN 1.5), Tempo-Beschleunigung & paralleles Sammeln
 
 - **3-Stufen-Trainingskurrikulum** (Tab *SNN-Training*) – genau die GEN-1.5-Pipeline in Miniatur:
   - **Stufe 1 · Video-Vortraining (BC):** Verhaltens-Klonen auf dem gesammelten Datensatz (= wie *Gen 1*: Foundation-Policy per Behavior Cloning). Das bisherige Training – jetzt mit Stufen-Anzeige.
