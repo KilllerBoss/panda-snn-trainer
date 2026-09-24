@@ -2,9 +2,24 @@
 
 **MuJoCo-WASM · Franka Emika Panda · Spiking Neural Network · GEN-1.5-inspiriert (vereinfacht)**
 
-Deine App: `SNN-Roboter-Trainer-v1.6.apk` (9,0 MB, signiert, läuft komplett offline auf dem Gerät)
+Deine App: `SNN-Roboter-Trainer-v1.7.apk` (9,0 MB, signiert, läuft komplett offline auf dem Gerät) (9,0 MB, signiert, läuft komplett offline auf dem Gerät)
 
 ---
+
+## ⭐⭐⭐ Neu in v1.7 – Greifen & Stapeln vollständig überholt („Turm stürzt immer ein" behoben)
+
+Der Grund für kippende Türme war **zweigeteilt** – beides ist jetzt behoben und in 25 Headless-Testrunden mit echtem MuJoCo verifiziert:
+
+- **Würfel-Physik stabilisiert:** Die Würfel nutzten bisher die sehr weichen Standard-Kontaktwerte – ein Turm mit nur **2 mm Versatz pro Ebene kroch innerhalb von 12 Sekunden in sich zusammen** (gemessen!). Jetzt haben die Würfel steife, holzwürfel-artige Kontakte: Türme bleiben auch mit 4 mm Versatz und 35° Verdrehung dauerhaft stehen.
+- **Experten-Politik erneuert** (identisch in Haupt-App und allen Sammel-Workern):
+  - **Arm kollidiert nie mehr mit dem Turm:** Anflug-, Such- und Überfahrthöhe richten sich nach der *physisch gemessenen* Turmhöhe (+9–12 cm Sicherheitsabstand, Fingerspitzen hängen 5,4 cm unter dem Werkzeugpunkt). Würfel neben dem Turm werden gar nicht erst angeflogen (Sperrzone wächst mit Turmhöhe).
+  - **Turm-Zähler robuster:** Eine Ebene wird nicht mehr „vergessen", wenn ein Würfel minimal verdreht liegt – zuvor führte das dazu, dass der Arm auf Turmwürfel herabsank oder mit der offenen Hand durch die Turmspitze kämmte.
+  - **Zweistufiges, kraftfreies Platzieren:** erst 8 mm über der Ablage in der Ruhe halten und fein ausrichten (XY), dann langsam aufsetzen (echte Flächen-Berührung wird erkannt, keine Kantablage mehr), Absetzen mit 0 mm Anpressdruck, und der Greifer öffnet erst, wenn der Würfel **ruhig aufliegt**. Nach dem ersten Kontakt folgt die Hand dem Würfel statt den Turm zu verdrängen.
+  - **Keine Fehlwürfe mehr:** Timeouts werfen keinen gut gehaltenen Würfel mehr weg; NaN-Schutz fängt Physik-Ausreißer ab (Arm fror früher minutenlang ein); seitlich liegende Würfel werden korrekt erkannt (jede Seitenlage ist stapelbar) und falsch gekippte Griffe abgebrochen.
+  - **Sanfte Yaw-Angleichung** beim senkrechten Steigen (die Finger treffen mit flachen Pads auf die Würfelflächen).
+- **Messergebnis** (25 Runden à 5 Würfel, gleicher Zufalls-Seed): Griff-Erfolg **95 %** (vorher 91 %), Policy-Abbrüche **1** statt 12, Turm-Einstürze **0,64 pro Runde** statt **33** (Faktor 50 besser), Stapelhöhe **median 4, Ø 3,4** (vorher median 1–2), **5–7 komplette 5/5-Runden** (vorher 0).
+
+> ⚠️ **Wichtig beim Update von v1.2–v1.6:** v1.7 ist wieder mit dem Signaturschlüssel von v1.0/v1.1 signiert – Android verlangt deshalb einmalig **Deinstallieren vor der Installation**. Bitte VORHER **Gewichte exportieren** (.snnweights, Tab *SNN-Training*) und **Datensatz exportieren** (.snnpack, Tab *Datensatz*), nach der Installation beides wieder importieren. (Update von v1.0/v1.1 geht direkt drüber.)
 
 ## ⭐⭐⭐ Neu in v1.6 – Kritischer Fix: App fror nach 1 Sekunde ein
 
